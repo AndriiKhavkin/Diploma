@@ -15,6 +15,7 @@ import httpx
 from httpx import ConnectError, ReadTimeout, HTTPStatusError
 from pydantic import BaseModel
 
+print(f"[DEBUG] loading printers.py from {__file__}")
 # ────────────────────────────────  MAC helpers  ─────────────────────────────
 CREALITY_MAC_PREFIXES = ("d4:3a:eb", "84:0d:8e", "dc:01:02", "fc:ee:11", "fc:ee:28")
 
@@ -254,26 +255,30 @@ async def get_print_job(ip: str):
 
 async def list_files(ip: str):
     """
-    Повертає список G‑кодів у root=gcodes або:
-     • []  — якщо на принтері немає файлів чи стався HTTP 404
-     • None — якщо немає зв’язку з принтером
-    УСІ помилки перехоплюються, щоб енд‑поінт завжди віддавав 200 OK.
+    Повертає список G-кодів у root=gcodes або:
+      • []  — якщо на принтері немає файлів чи стався HTTP 404
+      • None — якщо принтер офлайн (невдалося підключитися)
+    УСІ помилки перехоплюються, щоб ендпоінт завжди віддавав 200 OK.
     """
     try:
-        async with httpx.AsyncClient(timeout=5) as c:
-            r = await c.get(
-                f"http://{ip}:7125/server/files/list", params={"root": "gcodes"}
-            )
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"http://{ip}:7125/server/files/list", params={"root": "gcodes"})
         if r.status_code == 404:
-            # Moonraker відповідає 404, коли root не знайдено
             return []
         r.raise_for_status()
-        return r.json().get("result", {}).get("files", [])
-    except (ConnectError, ReadTimeout):
-        return None          # офлайн
-    except HTTPStatusError as e:
-        print(f"[WARN] list_files {ip}: {e}")
+        data = r.json()
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            res = data.get("result", data)
+            if isinstance(res, list):
+                return res
+            if isinstance(res, dict):
+                return res.get("files") or res.get("entries") or res.get("items") or []
+        print(f"[WARN] list_files {ip}: unexpected format {type(data)}")
         return []
+    except (ConnectError, ReadTimeout):
+        return None
     except Exception as e:
         print(f"[ERROR] list_files {ip}: {e}")
         return []

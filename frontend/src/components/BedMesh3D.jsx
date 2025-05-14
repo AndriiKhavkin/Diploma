@@ -73,12 +73,21 @@ export default function BedMesh3D({ data, sx }) {
     [1, "red"],
   ];
 
+  // Розміри матриці
+  const nRows = matrix.length;
+  const nCols = matrix[0].length;
+  // координати осей: 0,1,… до числа стовпців/рядів
+  const x = Array.from({ length: nCols }, (_, i) => i);
+  const y = Array.from({ length: nRows }, (_, i) => i);
+
   // --- 4. Рендеримо поверхню ---
   return (
     <Plot
       data={[
         {
           z: matrix,
+          x,      // додаємо координати стовпців
+          y,      // додаємо координати рядків
           type: "surface",
           colorscale,
           cmin: minVal,
@@ -91,8 +100,14 @@ export default function BedMesh3D({ data, sx }) {
         margin: { l: 40, r: 40, b: 40, t: 10 },
         scene: {
           dragmode: "turntable",
-          xaxis: { title: "X" },
-          yaxis: { title: "Y" },
+           xaxis: {
+           title: "X",
+           range: [0, nCols - 1],
+         },
+         yaxis: {
+           title: "Y",
+           range: [0, nRows - 1],
+         },
           zaxis: { title: "Z (height)" },
         },
       }}

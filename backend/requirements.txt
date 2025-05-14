@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+httpx
+pyyaml
+pydantic
+aiohttp
+python-multipart

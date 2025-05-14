@@ -2,6 +2,7 @@
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import httpx
 from typing import List
 
 from printers import (
@@ -124,10 +125,12 @@ async def printer_files(ip: str):
 
 @app.post("/printer/{ip}/print")
 async def print_(ip: str, payload: dict):
-    # payload = {"filename":"cube_20mm.gcode"}
     filename = payload["filename"]
-    cmd = f"PRINT_START filename={filename}"
-    await send_gcode(ip, [cmd])
+    url = f"http://{ip}:7125/printer/print/start"
+    async with httpx.AsyncClient(timeout=5) as client:
+        # передаємо filename як параметр запиту
+        r = await client.post(url, params={"filename": filename})
+        r.raise_for_status()
     return {"status": "ok"}
 
 

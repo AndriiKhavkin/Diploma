@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Any
 
 import httpx
-from httpx import ConnectError, ReadTimeout, HTTPStatusError
+from httpx import ConnectError, ReadTimeout, HTTPStatusError, HTTPError
 from pydantic import BaseModel
 
 print(f"[DEBUG] loading printers.py from {__file__}")
@@ -220,11 +220,22 @@ async def discover_printers() -> list[Printer]:
     return [Printer(name=d["ip"], host=d["ip"], mac=d["mac"]) for d in found]
 
 
-async def send_gcode(ip: str, lines: list[str]):
-    async with httpx.AsyncClient(timeout=5) as c:
-        await c.post(
-            f"http://{ip}:7125/printer/gcode/script", json={"script": "\n".join(lines)}
-        )
+async def send_gcode(ip: str, lines: list[str]) -> dict:
+    """
+    Надсилає G-код на принтер через Moonraker.
+    Будь-які таймаути або HTTP-помилки логуються, але не підкидаються.
+    """
+    url = f"http://{ip}:7125/printer/gcode/script"
+    # таймаут на підключення 5с, на відповіді — 30с
+    timeout = httpx.Timeout(connect=5.0, read=30.0, write=30.0, pool=30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            resp = await client.post(url, json={"script": "\n".join(lines)})
+            # за потреби можна розкоментити перевірку статусу:
+            # resp.raise_for_status()
+        except (ConnectError, ReadTimeout, HTTPError) as e:
+            print(f"[WARN] send_gcode → {ip} {lines!r}: {e}")
+    return {"sent": lines}
 
 
 async def get_print_job(ip: str):

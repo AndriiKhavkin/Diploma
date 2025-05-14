@@ -25,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from printers import send_gcode
 
 class PreheatParams(BaseModel):
     temp: int
@@ -187,3 +188,62 @@ async def upload_file(ip: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
     return {"ok": True}
+
+
+
+async def _proxy_print_control(ip: str, action: str):
+    """
+    Проксі-протокол для Moonraker:
+      action = "pause" → /printer/print/pause
+      action = "cancel" → /printer/print/stop
+    """
+    url = f"http://{ip}:7125/printer/print/{action}"
+    # встановимо окремі таймаути: 10с на конект, 30с на рід
+    timeout = httpx.Timeout(
+        connect=10.0,
+        read=30.0,
+        write=30.0,
+        pool=30.0
+    )
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        r = await client.post(url)
+        try:
+            r.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+
+
+@app.post("/printer/{ip}/print/pause")
+async def pause_print(ip: str):
+    """
+    Pause the current print by sending the PAUSE G-code.
+    """
+    try:
+        # Klipper macro: PAUSE
+        await send_gcode(ip, ["PAUSE"])
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pause failed: {e}")
+
+@app.post("/printer/{ip}/print/stop")
+async def stop_print(ip: str):
+    """
+    Fully stop/cancel the print by sending the CANCEL_PRINT G-code.
+    """
+    try:
+        await send_gcode(ip, ["CANCEL_PRINT"])
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stop failed: {e}")
+
+@app.post("/printer/{ip}/print/resume")
+async def resume_print(ip: str):
+    """
+    Resume a paused print by sending the RESUME G-code.
+    """
+    try:
+        # Klipper macro: RESUME
+        await send_gcode(ip, ["RESUME"])
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Resume failed: {e}")

@@ -70,3 +70,21 @@ export async function uploadFile(ip, file, onProgress){
    );
   return data.ok;
 }
+
+// Пауза друку
+export async function pausePrint(ip) {
+  const { data } = await axios.post(`${API}/printer/${ip}/print/pause`);
+  return data;
+}
+
+// Зупинка (скасування) друку
+export async function stopPrint(ip) {
+  const { data } = await axios.post(`${API}/printer/${ip}/print/stop`);
+  return data;
+}
+
+// Відновити паузу друку
+export async function resumePrint(ip) {
+  const { data } = await axios.post(`${API}/printer/${ip}/print/resume`);
+  return data;
+}

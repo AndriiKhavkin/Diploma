@@ -1,47 +1,103 @@
-// frontend/src/components/BedMesh3D.jsx
-import React from 'react';
-import Plot from 'react-plotly.js';
+// src/components/BedMesh3D.jsx
+import React from "react";
+import Plot from "react-plotly.js";
+import { Box, Typography } from "@mui/material"; // 1) імпорт Box & Typography
 
-export default function BedMesh3D({ matrix }) {
+/**
+ * @param {{ data: object, sx?: object }} props
+ *   data: обʼєкт bed_mesh з бекенду
+ *   sx: додаткові стилі MUI
+ */
+export default function BedMesh3D({ data, sx }) {
+  // --- 1. Витягуємо “реальну” матрицю z-значень ---
+  let matrix = [];
+  // (A) спроба mesh_matrix
+  if (
+    Array.isArray(data.mesh_matrix) &&
+    data.mesh_matrix.some(r => Array.isArray(r) && r.length > 0)
+  ) {
+    matrix = data.mesh_matrix;
+  }
+  // (B) або probed_matrix
+  else if (
+    Array.isArray(data.probed_matrix) &&
+    data.probed_matrix.some(r => Array.isArray(r) && r.length > 0)
+  ) {
+    matrix = data.probed_matrix;
+  }
+  // (C) fallback на профільні точки (беремо тільки z)
+  else {
+    const prof = data.profiles?.default?.points;
+    if (Array.isArray(prof) && prof.length > 0) {
+      matrix = prof.map(row =>
+        Array.isArray(row)
+          ? row.slice(2)     // забираємо лише значення Z
+          : []
+      );
+    }
+  }
+
+  // --- 2. Якщо нічого рендерити, показуємо плейсхолдер ---
+  const hasData =
+    Array.isArray(matrix) &&
+    matrix.length > 0 &&
+    matrix.some(r => Array.isArray(r) && r.length > 0);
+
+  if (!hasData) {
+    return (
+      <Box
+        sx={{
+          height: 200,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          ...sx,
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          Немає даних для mesh
+        </Typography>
+      </Box>
+    );
+  }
+
+  // --- 3. Обчислюємо кольорову шкалу та межі ---
   const flat = matrix.flat();
   const minVal = Math.min(...flat);
   const maxVal = Math.max(...flat);
   const mid = (0 - minVal) / ((maxVal - minVal) || 1);
 
-  // дивергентний colorscale: край – червоний, середина (0) – зелений
   const colorscale = [
-    [0, 'red'],
-    [mid, 'green'],
-    [1, 'red'],
+    [0, "red"],
+    [mid, "green"],
+    [1, "red"],
   ];
 
+  // --- 4. Рендеримо поверхню ---
   return (
     <Plot
       data={[
         {
           z: matrix,
-          type: 'surface',
+          type: "surface",
           colorscale,
           cmin: minVal,
           cmax: maxVal,
-          showscale: true,       // вмикаємо колонку шкали
-        }
+          showscale: true,
+        },
       ]}
       layout={{
         autosize: true,
-        title: '',
-        scene: {
-          dragmode: 'turntable', // режим обертання
-          xaxis: { title: 'X' },
-          yaxis: { title: 'Y' },
-          zaxis: { title: 'Z (height)' },
-        },
         margin: { l: 40, r: 40, b: 40, t: 10 },
+        scene: {
+          dragmode: "turntable",
+          xaxis: { title: "X" },
+          yaxis: { title: "Y" },
+          zaxis: { title: "Z (height)" },
+        },
       }}
-      config={{
-        displayModeBar: false // прибираємо всі кнопки plotly
-      }}
-      style={{ width: '100%', height: '400px' }}
+      config={{ displayModeBar: false }}
+      style={{ width: "100%", height: 400 }}
     />
   );
 }

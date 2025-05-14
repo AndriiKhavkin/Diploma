@@ -1,90 +1,86 @@
 import axios from 'axios';
+
+// Налаштування базового URL до API
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const http = axios.create({ baseURL: API });
 
-// задаємо базову адресу для всіх запитів
-axios.defaults.baseURL = API;
-
+// Отримати статус усіх принтерів
 export async function fetchStatus() {
-  const { data } = await axios.get(`${API}/status`);
+  const { data } = await http.get('/status');
   return data;
 }
 
-export async function fetchBedMesh(name) {
-  const { data } = await axios.get(`${API}/printer/${name}/mesh`);
-  return data;
-}
-
-export async function preheatBed(name, temp) {
-  const { data } = await axios.post(
-    `${API}/control/${name}/preheat_bed`,
-    { temp }
-  );
-  return data;
-}
-
-export async function preheatNozzle(name, temp) {
-  const { data } = await axios.post(
-    `${API}/control/${name}/preheat_nozzle`,
-    { temp }
-  );
-  return data;
-}
-
-// Новий метод для калібрування
-export async function calibrateMesh(name) {
-  const { data } = await axios.post(`${API}/control/${name}/calibrate_mesh`);
-  return data;
-}
-
+// Отримати інформацію про активний джоб
 export async function fetchPrintJob(ip) {
-  const { data } = await axios.get(`${API}/printer/${ip}/job`);
+  const { data } = await http.get(`/printer/${ip}/job`);
   return data;
 }
 
+// Отримати mesh-дані столу
+export async function fetchBedMesh(ip) {
+  const { data } = await http.get(`/printer/${ip}/mesh`);
+  return data;
+}
+
+// Отримати список G-code файлів
 export async function fetchFiles(ip) {
-  const { data } = await axios.get(`${API}/printer/${ip}/files`);
-  return data.result;           // null | []
+  const { data } = await http.get(`/printer/${ip}/files`);
+  return data;
 }
 
+// Попередній розігрів екструдера (hotend)
+export async function preheatNozzle(ip, temperature) {
+  const { data } = await http.post(`/printer/${ip}/hotend`, { temperature });
+  return data;
+}
+
+// Попередній розігрів столу (bed)
+export async function preheatBed(ip, temperature) {
+  const { data } = await http.post(`/printer/${ip}/bed`, { temperature });
+  return data;
+}
+
+// Запустити автокалібрування столу
+export async function calibrateMesh(ip) {
+  const { data } = await http.post(`/printer/${ip}/calibrate`);
+  return data;
+}
+
+// Старт друку заданого G-code файлу
 export async function startPrint(ip, filename) {
-  await axios.post(`${API}/printer/${ip}/print`, { filename });
-}
-
-export async function getEnclosureFan(ip) {
-  const res = await axios.get(`${API}/control/${ip}/enclosure_fan`)
-  return res.data;  // { power: number }
-}
-
-export async function setEnclosureFan(ip, power) {
-  const res = await axios.post(`/control/${ip}/enclosure_fan`, { speed: power });
-  return res.data;  // { status: 'ok', power: number }
-}
-
-export async function uploadFile(ip, file, onProgress){
-  const fd = new FormData();
-  fd.append("file", file);
-   const { data } = await axios.post(
-    `${API}/printer/${ip}/upload`,
-    fd,
-       { onUploadProgress: e => onProgress?.(Math.round(e.loaded*100/e.total)) }
-   );
-  return data.ok;
+  const { data } = await http.post(`/printer/${ip}/print`, { filename });
+  return data;
 }
 
 // Пауза друку
 export async function pausePrint(ip) {
-  const { data } = await axios.post(`${API}/printer/${ip}/print/pause`);
+  const { data } = await http.post(`/printer/${ip}/print/pause`);
+  return data;
+}
+
+// Відновлення друку
+export async function resumePrint(ip) {
+  const { data } = await http.post(`/printer/${ip}/print/resume`);
   return data;
 }
 
 // Зупинка (скасування) друку
 export async function stopPrint(ip) {
-  const { data } = await axios.post(`${API}/printer/${ip}/print/stop`);
+  const { data } = await http.post(`/printer/${ip}/print/stop`);
   return data;
 }
 
-// Відновити паузу друку
-export async function resumePrint(ip) {
-  const { data } = await axios.post(`${API}/printer/${ip}/print/resume`);
+// Завантаження G-code файлу на принтер
+export async function uploadFile(ip, file, onProgress) {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await http.post(
+    `/printer/${ip}/upload`,
+    form,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (e) => onProgress?.(Math.round((e.loaded * 100) / e.total)),
+    }
+  );
   return data;
 }

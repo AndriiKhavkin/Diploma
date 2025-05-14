@@ -1,5 +1,5 @@
 # backend/main.py
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
@@ -159,3 +159,31 @@ async def set_enclosure_fan(printer_name: str, speed: int = Body(..., embed=True
 
     await pr.set_enclosure_fan(speed)
     return {"status": "ok", "power": speed}
+
+
+@app.post("/printer/{ip}/upload")
+async def upload_file(ip: str, file: UploadFile = File(...)):
+    """
+    Проксі для завантаження G-code на принтер через Moonraker.
+    Отримує файл у multipart/form-data під ключем "file"
+    та штовхає його на /server/files/upload?root=gcodes
+    """
+    # Зчитуємо вміст файлу
+    content = await file.read()
+    # Формуємо URL для Moonraker
+    url = f"http://{ip}:7125/server/files/upload"
+    params = {"root": "gcodes"}
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            # Передаємо файл у форматі multipart/form-data
+            files = {"file": (file.filename, content, file.content_type)}
+            r = await client.post(url, params=params, files=files)
+            r.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        # Якщо Moonraker повернув 4xx/5xx
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except Exception as e:
+        # Інші помилки (timeout, connection)
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"ok": True}

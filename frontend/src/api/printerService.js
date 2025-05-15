@@ -25,7 +25,8 @@ export async function fetchBedMesh(ip) {
 // Отримати список G-code файлів
 export async function fetchFiles(ip) {
   const { data } = await http.get(`/printer/${ip}/files`);
-  return data;
+  // повертаємо саме масив файлів
+  return data.result;
 }
 
 // Попередній розігрів екструдера (hotend)

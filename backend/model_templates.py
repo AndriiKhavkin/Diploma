@@ -5,7 +5,8 @@ model_command_template = {
         "enclosure_off": ["M106 P2 S0"]     # вимкнути
     },
     "Ender 3 KE": {
-        "calibrate": ["G29"]
+        # Додаємо G28 для позиціонування в домашню точку перед mesh-калібруванням
+        "calibrate": ["G28", "G29"]
     },
     "Other": {
         "calibrate": ["G29"]

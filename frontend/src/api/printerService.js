@@ -42,7 +42,8 @@ export async function preheatBed(ip, temperature) {
 
 // Запустити автокалібрування столу
 export async function calibrateMesh(ip) {
-  const { data } = await http.post(`/printer/${ip}/calibrate`);
+  // Маршрут у бекенді: /control/{printer_name}/calibrate_mesh
+  const { data } = await http.post(`/control/${ip}/calibrate_mesh`);
   return data;
 }
 

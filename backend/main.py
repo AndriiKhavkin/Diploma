@@ -94,7 +94,8 @@ async def calibrate_mesh(printer_name: str):
         raise HTTPException(status_code=404, detail="Printer not found")
 
     model = get_model_name_by_mac(pr.mac)
-    commands = model_command_template.get(model, ["G29"])
+    # Беремо список G-кодів під ключем "calibrate"
+    commands = model_command_template.get(model, {}).get("calibrate", ["G29"])
     print(f"[INFO] Calibrating {pr.name} as {model} with {commands}")
 
     detail = await pr.send_gcode(commands)
